@@ -523,20 +523,23 @@ class StoreToZarr(beam.PTransform, ZarrWriterMixin):
         self,
         datasets: beam.PCollection[Tuple[Index, xr.Dataset]],
     ) -> beam.PCollection[zarr.storage.FSStore]:
-        schema = datasets | DetermineSchema(combine_dims=self.combine_dims)
-        indexed_datasets = datasets | IndexItems(schema=schema)
-        rechunked_datasets = indexed_datasets | Rechunk(
-            target_chunks=self.target_chunks, schema=schema
-        )
-        target_store = schema | PrepareZarrTarget(
-            target=self.get_full_target(), target_chunks=self.target_chunks, attrs=self.attrs
-        )
-        n_target_stores = rechunked_datasets | StoreDatasetFragments(target_store=target_store)
-        singleton_target_store = (
-            n_target_stores
-            | beam.combiners.Sample.FixedSizeGlobally(1)
-            | beam.FlatMap(lambda x: x)  # https://stackoverflow.com/a/47146582
-        )
-        # TODO: optionally use `singleton_target_store` to
-        # consolidate metadata and/or coordinate dims here
-        return singleton_target_store
+        try:
+            schema = datasets | DetermineSchema(combine_dims=self.combine_dims)
+            indexed_datasets = datasets | IndexItems(schema=schema)
+            rechunked_datasets = indexed_datasets | Rechunk(
+                target_chunks=self.target_chunks, schema=schema
+            )
+            target_store = schema | PrepareZarrTarget(
+                target=self.get_full_target(), target_chunks=self.target_chunks, attrs=self.attrs
+            )
+            n_target_stores = rechunked_datasets | StoreDatasetFragments(target_store=target_store)
+            singleton_target_store = (
+                n_target_stores
+                | beam.combiners.Sample.FixedSizeGlobally(1)
+                | beam.FlatMap(lambda x: x)  # https://stackoverflow.com/a/47146582
+            )
+            # TODO: optionally use `singleton_target_store` to
+            # consolidate metadata and/or coordinate dims here
+            return singleton_target_store
+        except Exception as exp:
+            logger.exception(exp)
