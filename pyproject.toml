@@ -25,6 +25,7 @@ classifiers = [
 license = { text = "Apache-2.0" }
 keywords = ["pangeo", "data"]
 dependencies = [
+    "setuptools==68.2.2",
     "apache-beam",
     "cftime",
     "dask >= 2021.11.2",
